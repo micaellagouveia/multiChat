@@ -11,6 +11,7 @@ class Room:
     def add_client(self, client):
         """Add a client to the room"""
         self.connected_clients.append(client)
+
         msg = f"MESSAGE;Server|Client `{client.name}` has joined the room `{self.name}`"
         self.notify_all(msg, exclude=client)
     
@@ -25,6 +26,7 @@ class Room:
 
     def notify_all(self, data, exclude=None):
         """Notify all clients in the room of the event"""
+        client: Client
         for client in self.connected_clients:
             if client == exclude:
                 continue
@@ -32,13 +34,14 @@ class Room:
 
 
 class Client:
-    def __init__(self, connection, address, name, server, room):
+    def __init__(self, connection, address, name, server, room: Room):
         self.connection = connection
         self.address = address
         self.name = name
-        self.server = server
+        self.server: Server = server
+        
+        
         self.current_room: Room = room
-
         room.add_client(self)
 
         # Variable used to stop the thread
@@ -53,6 +56,7 @@ class Client:
             self.is_connected = False
             self.connection.close()
             self.server.remove_client(self)
+            self.current_room.remove_client(self)
     
     def receive_from_client(self):
         while self.is_connected:
@@ -70,17 +74,16 @@ class Client:
             self.current_room.notify_all(package, exclude=self)
 
         elif command == 'JOIN_ROOM':
-            self.join_room(data[1])
+            room_name = data[1]
+            self.join_room(room_name)
 
-        elif command == 'LEAVE_ROOM':
-            pass
         
         elif command == 'CHANGE_NAME':
             old_name = self.name
             self.name = data[1]
 
-            msg = f'User {old_name} changed his name to {self.name}'
-            self.current_room.notify_all(msg)
+            msg = f'MESSAGE;Server|User {old_name} changed his name to {self.name}'
+            self.current_room.notify_all(msg, exclude=self)
         
         elif command in ['DISCONNECT', '']:
             if self.is_connected:
@@ -89,9 +92,14 @@ class Client:
                 
                 self.current_room.remove_client(self)
                 self.server.remove_client(self)
-
-
-
+    
+    def join_room(self, room_name):
+        if room_name == self.current_room.name:
+            return
+        room = self.server.get_room(room_name)
+        self.current_room.remove_client(self)
+        self.current_room = room
+        room.add_client(self)
 
 
 class Server:
@@ -124,6 +132,7 @@ class Server:
             self.rooms[room_name] = room
         return self.rooms[room_name]
 
+    
     def accept_clients_connections(self):
         """
         Thread function that accepts clients connections
@@ -136,7 +145,7 @@ class Server:
                 conn.close()
                 continue
             
-            print(f"New client connected from {addr}")
+            print(f"[LOG] - New client connected from {addr}")
 
             default_room = self.get_room('waiting room')
             
@@ -146,13 +155,18 @@ class Server:
             self.connected_clients.append(new_client)
             new_client.send_to_client(f"CONNECTED;{client_name}")
 
-    def remove_client(self, client):
+    
+    
+    def remove_client(self, client: Client):
+        """
+        Remove a client from the server list of connected clients
+        """
         if client in self.connected_clients:
             self.connected_clients.remove(client)
-            print(f"Client {client.name} disconnected")
-        del client
+            print(f"[LOG] - Client {client.name} disconnected")
     
     def close(self):
+        """Close the server socket"""
         try:
             self.server_socket.close()
         except:
@@ -166,6 +180,7 @@ def get_max_server_clients():
             return int(max_server_clients)
         else:
             print("Please enter a valid number")
+
 
 if __name__ == "__main__":
     # max_server_clients = get_max_server_clients()

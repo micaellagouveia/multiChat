@@ -1,6 +1,7 @@
 import socket
 import threading
 import datetime as dt
+from time import sleep
 
 
 class Client:
@@ -12,27 +13,41 @@ class Client:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((self.host, self.port))
         self.is_connected = True
-        print('Connected to server')
         threading.Thread(target=self.listen_for_messages).start()
 
+        self.print_help()
         self.start_repl()
-
+    
+    def print_help(self):
+        msg = (
+            '\n'
+            '/help - Displays this message\n'
+            '/quit - Disconnects from the server\n'
+            '/change_room - Changes the room you are in\n'
+            '/change_name - Changes your name\n'
+        )
+        print(msg)
     
     def process_commands(self, message: str):
-        if message == '/help':
-            print('/help - Displays this message')
-            print('/quit - Disconnects from the server')
-            print('/change_room - Changes the room you are in')
+        if message[:5] == '/help':
+            self.print_help()
+            
         
-        elif message == '/change_room':
-            self.change_room()
+        elif message[:12] == '/change_room':
+            room_name = message.replace('/change_room ', '')
+            self.change_room(room_name)
         
-        elif message == '/quit':
+        elif message[:5] == '/quit':
             self.disconnect()
+        
+        elif message[:12] == '/change_name':
+            name = message.replace('/change_name ', '')
+            self.change_name(name)
     
     def start_repl(self):
+        sleep(1)
         while self.is_connected:
-            message = input("> ")
+            message = input("\n> ")
 
             # Command
             if message and message[0] == '/':
@@ -40,6 +55,13 @@ class Client:
             else:
                 self.send_message(message)
 
+    def change_room(self, room_name):
+        self.socket.send(f'JOIN_ROOM;{room_name}'.encode('UTF-8'))
+    
+    def change_name(self, new_name):
+        self.socket.send(f'CHANGE_NAME;{new_name}'.encode('UTF-8'))
+        
+    
     def send_message(self, message):
         if self.is_connected:
             self.socket.send(f'MESSAGE;{message}'.encode('UTF-8'))
