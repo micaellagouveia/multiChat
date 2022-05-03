@@ -5,7 +5,7 @@ from time import sleep
 
 
 class Client:
-    def __init__(self, host='localhost', port=5001):
+    def __init__(self, host='localhost', port=5000):
         self.host = host
         self.port = port
 
@@ -37,7 +37,7 @@ class Client:
         content = data[1]
 
         if command == 'CONNECTED':
-            print('Connected to server')
+            print('Connected to server. You are in the waiting room.')
         
         elif command == 'MESSAGE':
             data = content.split('|')
@@ -71,7 +71,11 @@ class Client:
             new_name = message.replace('/change_name ', '')
             self.socket.send(f'CHANGE_NAME;{new_name}'.encode('UTF-8'))
 
-        elif message[:5] == '/quit':
+        elif message[:10] == '/quit_room':
+            new_name = message.replace('/quit_room ', '')
+            self.socket.send(f'QUIT_ROOM;{new_name}'.encode('UTF-8'))
+
+        elif message[:11] == '/disconnect':
             self.socket.send('DISCONNECT;'.encode('UTF-8'))
             self.close()
         
@@ -89,7 +93,8 @@ class Client:
         msg = (
             '\n'
             '/help - Displays this message\n'
-            '/quit - Disconnects from the server\n'
+            '/disconnect - Disconnects from the server\n'
+            '/quit_room - Disconnects from the room and bring to waiting room\n'
             '/change_room - Changes the room you are in\n'
             '/change_name - Changes your name\n'
         )

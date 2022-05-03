@@ -79,6 +79,10 @@ class Client:
             room_name = data[1]
             self.join_room(room_name)
         
+        elif command == 'QUIT_ROOM':
+            room_name = 'waiting room'
+            self.join_room(room_name)
+        
         elif command == 'CHANGE_NAME':
             old_name = self.name
             self.name = data[1]
